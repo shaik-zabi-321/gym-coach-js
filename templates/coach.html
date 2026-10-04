@@ -161,6 +161,11 @@
             transform: scaleX(-1)
         }
 
+        .stage.back video,
+        .stage.back canvas {
+            transform: none
+        }
+
         #status {
             position: absolute;
             left: 14px;
@@ -229,6 +234,7 @@
                     max="50"></div>
             <button class="primary" id="start" disabled>Loading model...</button>
             <button id="end" disabled>End workout</button>
+            <button id="flip">Camera: Front</button>
             <hr>
             <h2>Progress</h2>
             <div class="grid">
@@ -390,13 +396,28 @@
             requestAnimationFrame(loop);
         }
 
+        let facing = "user";
+        async function startCamera() {
+            video.srcObject?.getTracks().forEach(t => t.stop());
+            video.srcObject = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: facing }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false
+            });
+            await video.play();
+            document.querySelector(".stage").classList.toggle("back", facing === "environment"); // only mirror the selfie camera
+            prev = null;
+        }
+
+        $("flip").onclick = async () => {
+            facing = facing === "user" ? "environment" : "user";
+            $("flip").textContent = "Camera: " + (facing === "user" ? "Front" : "Back");
+            if (S.on) {                       // switch live during a workout
+                try { await startCamera(); } catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; }
+            }
+        };
+
         $("start").onclick = async () => {
-            try {
-                video.srcObject = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false
-                });
-                await video.play();
-            } catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; return; }
+            try { await startCamera(); }
+            catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; return; }
             Object.assign(S, {
                 on: true, ex: $("ex").value, sets: +$("sets").value || 1, rps: +$("rps").value || 1,
                 savedSets: 0, finished: false, lastCheck: 0, lastRender: 0
