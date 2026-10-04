@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Apna AI Coach</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Barlow:wght@400;500&family=JetBrains+Mono:wght@500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0A0D14;
+            --panel: #14161C;
+            --card: #181A20;
+            --line: #2B2D33;
+            --text: #E8E4DC;
+            --dim: #8A8580;
+            --accent: #B8551F
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 16px/1.5 Barlow, sans-serif
+        }
+
+        h1,
+        h2,
+        label,
+        button,
+        .lbl {
+            font-family: Oswald, sans-serif;
+            font-weight: 500;
+            letter-spacing: .02em
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            min-height: 100vh
+        }
+
+        aside {
+            background: var(--panel);
+            border-right: 1px solid var(--line);
+            padding: 22px 18px;
+            overflow-y: auto
+        }
+
+        main {
+            padding: 28px 24px;
+            max-width: 820px;
+            width: 100%
+        }
+
+        aside h2:first-child {
+            margin-top: 0
+        }
+
+        aside .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 12px
+        }
+
+        aside select,
+        aside input {
+            width: 100%
+        }
+
+        aside button {
+            width: 100%;
+            margin-bottom: 8px
+        }
+
+        aside .grid {
+            grid-template-columns: 1fr
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid var(--line);
+            margin: 18px 0
+        }
+
+        @media(max-width:820px) {
+            .layout {
+                grid-template-columns: 1fr
+            }
+
+            aside {
+                border-right: 0;
+                border-bottom: 1px solid var(--line)
+            }
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin: 0 0 4px
+        }
+
+        select,
+        input {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--line);
+            padding: 9px;
+            font: inherit;
+            border-radius: 0
+        }
+
+        button {
+            background: var(--card);
+            color: var(--text);
+            border: 1px solid var(--line);
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 0
+        }
+
+        button.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--bg)
+        }
+
+        button:disabled {
+            opacity: .4;
+            cursor: not-allowed
+        }
+
+        button:focus-visible,
+        select:focus-visible,
+        input:focus-visible {
+            outline: 2px solid var(--accent)
+        }
+
+        .stage {
+            position: relative;
+            aspect-ratio: 4/3;
+            background: #000;
+            border: 1px solid var(--line)
+        }
+
+        .stage video,
+        .stage canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1)
+        }
+
+        #status {
+            position: absolute;
+            left: 14px;
+            bottom: 12px;
+            color: #3ddc84;
+            font: 600 1.05rem Oswald, sans-serif;
+            text-shadow: 0 0 4px #000
+        }
+
+        #nopose {
+            position: absolute;
+            left: 14px;
+            top: 12px;
+            color: #3ddc84;
+            font: 600 1.1rem Oswald, sans-serif;
+            display: none;
+            text-shadow: 0 0 4px #000
+        }
+
+        #coachmsg {
+            margin: 14px 0;
+            padding: 14px;
+            background: #10281c;
+            border-left: 3px solid #3ddc84;
+            color: #bff0d3;
+            min-height: 3.2em
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 10px
+        }
+
+        .m {
+            background: var(--card);
+            border-left: 2px solid var(--accent);
+            padding: 10px 14px
+        }
+
+        .m .lbl {
+            color: var(--dim);
+            font-size: .9rem
+        }
+
+        .m b {
+            display: block;
+            font: 500 1.4rem "JetBrains Mono", monospace
+        }
+
+        h2 {
+            margin: 22px 0 8px;
+            font-size: 1.2rem
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout">
+        <aside>
+            <h2>Workout Plan</h2>
+            <div class="field"><label for="ex">Exercise</label><select id="ex"></select></div>
+            <div class="field"><label for="sets">Sets</label><input id="sets" type="number" value="2" min="1" max="50">
+            </div>
+            <div class="field"><label for="rps">Reps per set</label><input id="rps" type="number" value="10" min="1"
+                    max="50"></div>
+            <button class="primary" id="start" disabled>Loading model...</button>
+            <button id="end" disabled>End workout</button>
+            <hr>
+            <h2>Progress</h2>
+            <div class="grid">
+                <div class="m"><span class="lbl">Total Reps</span><b id="total">0</b></div>
+                <div class="m"><span class="lbl">Current Set Reps</span><b id="cur">0 / 0</b></div>
+                <div class="m"><span class="lbl">Sets Completed</span><b id="done">0 / 0</b></div>
+            </div>
+            <hr>
+            <h2 id="mtitle">Metrics</h2>
+            <div class="grid" id="metrics"></div>
+        </aside>
+        <main>
+            <h1>AI Real-time GYM Coach</h1>
+            <div class="lbl" style="color:var(--dim);margin-bottom:16px">Pose detection runs in your browser. No video
+                leaves your device.</div>
+            <div class="stage"><video id="video" playsinline muted></video><canvas id="overlay"></canvas>
+                <div id="status"></div>
+                <div id="nopose">NO POSE DETECTED<br>PLEASE FACE THE CAMERA</div>
+            </div>
+            <div id="coachmsg" aria-live="polite">Pick your plan and press Start.</div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+        import { DETECTORS, METRIC_LABELS, POSE_CONNECTIONS, bodyVisible, statusText } from "{{ url_for('static', filename='js/detectors.js') }}";
+
+        const $ = id => document.getElementById(id);
+        const video = $("video"), canvas = $("overlay"), ctx = canvas.getContext("2d");
+        Object.keys(DETECTORS).forEach(n => $("ex").add(new Option(n, n)));
+
+        // Same "full" model as your Streamlit app. For faster/lighter phones swap "full" for "lite" in this URL.
+        const MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+        let landmarker;
+        (async () => {
+            const fs = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+            landmarker = await PoseLandmarker.createFromOptions(fs, {
+                baseOptions: { modelAssetPath: MODEL, delegate: "GPU" }, runningMode: "VIDEO", numPoses: 1,
+                minPoseDetectionConfidence: .5, minPosePresenceConfidence: .5, minTrackingConfidence: .5
+            });
+            $("start").textContent = "Start workout"; $("start").disabled = false;
+        })();
+
+        // ---- coach (mirrors VoicePipeline gating) ----
+        let busy = false, playing = false, lastSpoken = 0;
+        const MAJOR = ["workout_started", "set_completed", "workout_completed"];
+        async function speak(event, metrics) {
+            const major = MAJOR.includes(event);
+            const now = Date.now();
+            if (busy) return;
+            if (!major && (playing || now - lastSpoken < 5000)) return;
+            busy = true;
+            try {
+                const res = await fetch("/api/feedback", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ event, exercise: S.ex, metrics })
+                });
+                const d = await res.json();
+                if (!res.ok) throw new Error(d.error);
+                if (d.text) {
+                    lastSpoken = Date.now();
+                    $("coachmsg").textContent = "🤖 Coach: " + d.text;
+                    if (d.audio) {
+                        const a = new Audio("data:" + d.audio_format + ";base64," + d.audio);
+                        playing = true; a.onended = a.onerror = () => playing = false;
+                        a.play().catch(() => playing = false);
+                    }
+                }
+            } catch (e) { console.error(e); }
+            busy = false;
+        }
+
+        // ---- workout state (mirrors metrics.py) ----
+        const S = { on: false, ex: "", sets: 0, rps: 0, savedSets: 0, finished: false, lastCheck: 0, lastRender: 0 };
+
+        function renderMetrics(m) {
+            const box = $("metrics"); box.innerHTML = "";
+            for (const [key, label, unit] of METRIC_LABELS[S.ex]) {
+                const d = document.createElement("div"); d.className = "m";
+                d.innerHTML = `<span class="lbl">${label}</span><b>${m ? m[key] : "-"}${m && unit ? unit : ""}</b>`;
+                box.appendChild(d);
+            }
+        }
+
+        function onMetrics(m) {
+            const reps = m.reps, setsDone = Math.floor(reps / S.rps), cur = reps % S.rps;
+            const complete = setsDone >= S.sets;
+            const t = Date.now();
+            if (t - S.lastRender > 250) {            // refresh numbers 4x/sec so they are readable
+                S.lastRender = t;
+                $("total").textContent = reps;
+                $("cur").textContent = `${cur} / ${S.rps}`;
+                $("done").textContent = `${setsDone} / ${S.sets}`;
+                renderMetrics(m);
+            }
+
+            if (setsDone > S.savedSets) {            // TODO phase 2: POST to /api/workouts to save in DB
+                S.savedSets = setsDone;
+                if (!complete) speak("set_completed", m);
+            }
+            if (complete && !S.finished) { S.finished = true; speak("workout_completed", m); return; }
+            if (S.finished) return;
+
+            const now = Date.now();
+            if (now - S.lastCheck > 1500) { S.lastCheck = now; speak("ongoing_form_check", m); }
+        }
+
+        function draw(lm) {
+            canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+            const w = canvas.width, h = canvas.height;
+            ctx.clearRect(0, 0, w, h);
+            if (!lm) return;
+            ctx.strokeStyle = "#00ff00"; ctx.lineWidth = 6;
+            for (const [a, b] of POSE_CONNECTIONS)
+                if (lm[a].visibility > .7 && lm[b].visibility > .7) {
+                    ctx.beginPath(); ctx.moveTo(lm[a].x * w, lm[a].y * h); ctx.lineTo(lm[b].x * w, lm[b].y * h); ctx.stroke();
+                }
+            ctx.fillStyle = "#2f6bff";
+            for (const p of lm) if (p.visibility > .7) { ctx.beginPath(); ctx.arc(p.x * w, p.y * h, 6, 0, 7); ctx.fill(); }
+        }
+
+        // light smoothing so landmarks do not jitter frame to frame
+        let prev = null;
+        function smooth(lm) {
+            const a = 0.5;
+            prev = prev && prev.length === lm.length
+                ? lm.map((p, i) => ({ x: a * p.x + (1 - a) * prev[i].x, y: a * p.y + (1 - a) * prev[i].y, visibility: p.visibility }))
+                : lm.map(p => ({ x: p.x, y: p.y, visibility: p.visibility }));
+            return prev;
+        }
+
+        let last = -1, lastMetrics = null;
+        function loop() {
+            if (!S.on) return;
+            if (video.readyState >= 2 && video.currentTime !== last) {
+                last = video.currentTime;
+                const r = landmarker.detectForVideo(video, performance.now());
+                if (r.landmarks.length) {
+                    $("nopose").style.display = "none";
+                    const lm = smooth(r.landmarks[0]);
+                    draw(lm);
+                    if (bodyVisible(S.ex, lm)) {
+                        lastMetrics = DETECTORS[S.ex].process(lm);
+                        $("status").textContent = statusText(S.ex, lastMetrics);
+                        onMetrics(lastMetrics);
+                    } else {
+                        $("status").textContent = "STEP BACK: FULL BODY NOT VISIBLE";
+                        if (Date.now() - S.lastRender > 250) { S.lastRender = Date.now(); renderMetrics(null); }
+                    }
+                } else {
+                    prev = null; $("status").textContent = ""; draw(null); $("nopose").style.display = "block";
+                    if (!S.finished && Date.now() - S.lastCheck > 5000) {
+                        S.lastCheck = Date.now(); speak("no_pose_detected", {
+                            issue: "No pose detected. Step into the camera frame and make sure your full body is visible."
+                        });
+                    }
+                }
+            }
+            requestAnimationFrame(loop);
+        }
+
+        $("start").onclick = async () => {
+            try {
+                video.srcObject = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false
+                });
+                await video.play();
+            } catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; return; }
+            Object.assign(S, {
+                on: true, ex: $("ex").value, sets: +$("sets").value || 1, rps: +$("rps").value || 1,
+                savedSets: 0, finished: false, lastCheck: 0, lastRender: 0
+            });
+            DETECTORS[S.ex].reset(); lastSpoken = 0; prev = null;
+            $("start").disabled = $("ex").disabled = $("sets").disabled = $("rps").disabled = true;
+            $("end").disabled = false;
+            $("mtitle").textContent = S.ex + " Metrics"; renderMetrics(null);
+            speak("workout_started", {});
+            loop();
+        };
+
+        $("end").onclick = () => {
+            S.on = false;
+            video.srcObject?.getTracks().forEach(t => t.stop());
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            $("start").disabled = $("ex").disabled = $("sets").disabled = $("rps").disabled = false;
+            $("end").disabled = true;
+            if (!S.finished) { S.finished = true; speak("workout_completed", {}); }
+        };
+    </script>
+</body>
+
+</html>
