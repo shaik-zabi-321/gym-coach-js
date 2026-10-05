@@ -42,6 +42,12 @@ def find_form_issue(exercise, metrics):
         if arch == "SLIGHT ARCH":
             return "Your back is arching slightly. Focus on keeping your core tight and back straight."
 
+    elif exercise == "Deadlift":
+        if _norm(metrics.get("back_status")) == "ROUNDING":
+            return "Your back is rounding. Brace your core, lift your chest and keep your spine neutral."
+        if _norm(metrics.get("bar_status")) == "DRIFTING":
+            return "The bar is drifting away from your legs. Keep it close and drag it up your shins."
+
     elif exercise == "Lunges":
         if _norm(metrics.get("balance_status")) == "OFF BALANCE":
             return "You are off balance. Keep your weight centered and maintain a stable stance."

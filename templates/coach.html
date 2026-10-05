@@ -24,6 +24,10 @@
             box-sizing: border-box
         }
 
+        [hidden] {
+            display: none !important
+        }
+
         body {
             margin: 0;
             background: var(--bg);
@@ -32,7 +36,6 @@
         }
 
         h1,
-        h2,
         label,
         button,
         .lbl {
@@ -41,96 +44,47 @@
             letter-spacing: .02em
         }
 
-        .layout {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            min-height: 100vh
-        }
-
-        aside {
-            background: var(--panel);
-            border-right: 1px solid var(--line);
-            padding: 22px 18px;
-            overflow-y: auto
-        }
-
         main {
-            padding: 28px 24px;
-            max-width: 820px;
-            width: 100%
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 10px 12px 20px
         }
 
-        aside h2:first-child {
-            margin-top: 0
-        }
-
-        aside .field {
+        .top {
             display: flex;
-            flex-direction: column;
-            gap: 4px;
-            margin-bottom: 12px
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px
         }
 
-        aside select,
-        aside input {
-            width: 100%
+        .top h1 {
+            font-size: 1.35rem;
+            margin: 4px 0
         }
 
-        aside button {
-            width: 100%;
-            margin-bottom: 8px
-        }
-
-        aside .grid {
-            grid-template-columns: 1fr
-        }
-
-        hr {
-            border: 0;
-            border-top: 1px solid var(--line);
-            margin: 18px 0
-        }
-
-        @media(max-width:820px) {
-            .layout {
-                grid-template-columns: 1fr
-            }
-
-            aside {
-                border-right: 0;
-                border-bottom: 1px solid var(--line)
-            }
-        }
-
-        h1 {
-            font-size: 2.2rem;
-            margin: 0 0 4px
-        }
-
+        button,
         select,
         input {
             background: var(--card);
             color: var(--text);
             border: 1px solid var(--line);
-            padding: 9px;
+            padding: 10px 14px;
             font: inherit;
             border-radius: 0
         }
 
         button {
-            background: var(--card);
-            color: var(--text);
-            border: 1px solid var(--line);
-            padding: 10px 20px;
-            font-size: 1rem;
             cursor: pointer;
-            border-radius: 0
+            font-family: Oswald, sans-serif
         }
 
         button.primary {
             background: var(--accent);
             border-color: var(--accent);
-            color: var(--bg)
+            color: var(--bg);
+            width: 100%;
+            font-size: 1.1rem;
+            padding: 13px
         }
 
         button:disabled {
@@ -144,9 +98,54 @@
             outline: 2px solid var(--accent)
         }
 
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            padding: 14px;
+            margin: 10px 0
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 10px
+        }
+
+        .row2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px
+        }
+
+        select,
+        input {
+            width: 100%
+        }
+
+        .bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin: 8px 0
+        }
+
+        #planlabel {
+            flex: 1;
+            font: 500 1.05rem Oswald, sans-serif
+        }
+
+        .bar button {
+            padding: 8px 14px
+        }
+
+        /* Video on top. The box takes the camera's real shape and never taller than 58% of the screen. */
         .stage {
+            --ar: 1.333;
             position: relative;
-            aspect-ratio: 4/3;
+            width: min(100%, calc(58vh * var(--ar)));
+            aspect-ratio: var(--ar);
+            margin: 0 auto;
             background: #000;
             border: 1px solid var(--line)
         }
@@ -157,7 +156,7 @@
             inset: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
             transform: scaleX(-1)
         }
 
@@ -166,107 +165,131 @@
             transform: none
         }
 
+        #hud {
+            position: absolute;
+            left: 10px;
+            top: 6px;
+            display: flex;
+            gap: 12px;
+            align-items: baseline;
+            text-shadow: 0 0 5px #000
+        }
+
+        #hudRep {
+            font: 600 2.3rem "JetBrains Mono", monospace
+        }
+
+        #hudSet {
+            font: 500 1rem Oswald, sans-serif
+        }
+
         #status {
             position: absolute;
-            left: 14px;
-            bottom: 12px;
+            left: 10px;
+            bottom: 8px;
+            right: 10px;
             color: #3ddc84;
-            font: 600 1.05rem Oswald, sans-serif;
-            text-shadow: 0 0 4px #000
+            font: 600 1rem Oswald, sans-serif;
+            text-shadow: 0 0 5px #000
         }
 
         #nopose {
             position: absolute;
-            left: 14px;
-            top: 12px;
-            color: #3ddc84;
-            font: 600 1.1rem Oswald, sans-serif;
+            left: 10px;
+            top: 60px;
+            color: #ffb347;
+            font: 600 1rem Oswald, sans-serif;
             display: none;
-            text-shadow: 0 0 4px #000
+            text-shadow: 0 0 5px #000
         }
 
-        #coachmsg {
-            margin: 14px 0;
-            padding: 14px;
-            background: #10281c;
-            border-left: 3px solid #3ddc84;
-            color: #bff0d3;
-            min-height: 3.2em
-        }
-
-        .grid {
+        /* Metrics: three small tiles right under the video, no scrolling needed */
+        .chips {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 10px
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin: 8px 0
         }
 
         .m {
             background: var(--card);
             border-left: 2px solid var(--accent);
-            padding: 10px 14px
+            padding: 6px 10px;
+            min-width: 0
         }
 
         .m .lbl {
+            display: block;
             color: var(--dim);
-            font-size: .9rem
+            font-size: .75rem
         }
 
         .m b {
             display: block;
-            font: 500 1.4rem "JetBrains Mono", monospace
+            font: 500 1rem "JetBrains Mono", monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
         }
 
-        h2 {
-            margin: 22px 0 8px;
-            font-size: 1.2rem
+        #coachmsg {
+            padding: 10px 12px;
+            background: #10281c;
+            border-left: 3px solid #3ddc84;
+            color: #bff0d3;
+            min-height: 2.8em;
+            font-size: .95rem
         }
     </style>
 </head>
 
 <body>
-    <div class="layout">
-        <aside>
-            <h2>Workout Plan</h2>
-            <div class="field"><label for="ex">Exercise</label><select id="ex"></select></div>
-            <div class="field"><label for="sets">Sets</label><input id="sets" type="number" value="2" min="1" max="50">
-            </div>
-            <div class="field"><label for="rps">Reps per set</label><input id="rps" type="number" value="10" min="1"
-                    max="50"></div>
-            <button class="primary" id="start" disabled>Loading model...</button>
-            <button id="end" disabled>End workout</button>
+    <main>
+        <div class="top">
+            <h1>AI GYM Coach</h1>
             <button id="flip">Camera: Front</button>
-            <hr>
-            <h2>Progress</h2>
-            <div class="grid">
-                <div class="m"><span class="lbl">Total Reps</span><b id="total">0</b></div>
-                <div class="m"><span class="lbl">Current Set Reps</span><b id="cur">0 / 0</b></div>
-                <div class="m"><span class="lbl">Sets Completed</span><b id="done">0 / 0</b></div>
+        </div>
+
+        <!-- Before the workout: set the plan -->
+        <section id="setup" class="panel">
+            <div class="field"><label for="ex">Exercise</label><select id="ex"></select></div>
+            <div class="row2">
+                <div class="field"><label for="sets">Sets</label><input id="sets" type="number" value="2" min="1"
+                        max="50"></div>
+                <div class="field"><label for="rps">Reps per set</label><input id="rps" type="number" value="10" min="1"
+                        max="50"></div>
             </div>
-            <hr>
-            <h2 id="mtitle">Metrics</h2>
-            <div class="grid" id="metrics"></div>
-        </aside>
-        <main>
-            <h1>AI Real-time GYM Coach</h1>
-            <div class="lbl" style="color:var(--dim);margin-bottom:16px">Pose detection runs in your browser. No video
-                leaves your device.</div>
-            <div class="stage"><video id="video" playsinline muted></video><canvas id="overlay"></canvas>
-                <div id="status"></div>
-                <div id="nopose">NO POSE DETECTED<br>PLEASE FACE THE CAMERA</div>
-            </div>
-            <div id="coachmsg" aria-live="polite">Pick your plan and press Start.</div>
-        </main>
-    </div>
+            <button class="primary" id="start" disabled>Loading model...</button>
+        </section>
+
+        <!-- During the workout: one slim bar, so the video sits at the top -->
+        <div id="livebar" class="bar" hidden>
+            <span id="planlabel"></span>
+            <button id="end">End</button>
+        </div>
+
+        <div class="stage" id="stage">
+            <video id="video" playsinline muted></video>
+            <canvas id="overlay"></canvas>
+            <div id="hud"><span id="hudRep">0 / 0</span><span id="hudSet">SET 0 / 0</span></div>
+            <div id="nopose">NO POSE DETECTED. FACE THE CAMERA</div>
+            <div id="status"></div>
+        </div>
+
+        <div class="chips" id="metrics"></div>
+        <div id="coachmsg" aria-live="polite">Pick your plan and press Start.</div>
+    </main>
 
     <script type="module">
         import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
-        import { DETECTORS, METRIC_LABELS, POSE_CONNECTIONS, bodyVisible, statusText } from "{{ url_for('static', filename='js/detectors.js') }}";
+        import { DETECTORS, METRIC_LABELS, POSE_CONNECTIONS, bodyVisible, statusText }
+            from "{{ url_for('static', filename='js/detectors.js') }}";
 
         const $ = id => document.getElementById(id);
-        const video = $("video"), canvas = $("overlay"), ctx = canvas.getContext("2d");
+        const video = $("video"), canvas = $("overlay"), ctx = canvas.getContext("2d"), stage = $("stage");
         Object.keys(DETECTORS).forEach(n => $("ex").add(new Option(n, n)));
 
-        // Same "full" model as your Streamlit app. For faster/lighter phones swap "full" for "lite" in this URL.
+        // Same "full" model as your Streamlit app. For slower phones swap "full" for "lite" in this URL.
         const MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
         let landmarker;
         (async () => {
@@ -325,19 +348,16 @@
             const t = Date.now();
             if (t - S.lastRender > 250) {            // refresh numbers 4x/sec so they are readable
                 S.lastRender = t;
-                $("total").textContent = reps;
-                $("cur").textContent = `${cur} / ${S.rps}`;
-                $("done").textContent = `${setsDone} / ${S.sets}`;
+                $("hudRep").textContent = `${cur} / ${S.rps}`;
+                $("hudSet").textContent = complete ? "WORKOUT DONE" : `SET ${setsDone + 1} / ${S.sets}`;
                 renderMetrics(m);
             }
-
             if (setsDone > S.savedSets) {            // TODO phase 2: POST to /api/workouts to save in DB
                 S.savedSets = setsDone;
                 if (!complete) speak("set_completed", m);
             }
             if (complete && !S.finished) { S.finished = true; speak("workout_completed", m); return; }
             if (S.finished) return;
-
             const now = Date.now();
             if (now - S.lastCheck > 1500) { S.lastCheck = now; speak("ongoing_form_check", m); }
         }
@@ -366,7 +386,7 @@
             return prev;
         }
 
-        let last = -1, lastMetrics = null;
+        let last = -1;
         function loop() {
             if (!S.on) return;
             if (video.readyState >= 2 && video.currentTime !== last) {
@@ -377,9 +397,9 @@
                     const lm = smooth(r.landmarks[0]);
                     draw(lm);
                     if (bodyVisible(S.ex, lm)) {
-                        lastMetrics = DETECTORS[S.ex].process(lm);
-                        $("status").textContent = statusText(S.ex, lastMetrics);
-                        onMetrics(lastMetrics);
+                        const m = DETECTORS[S.ex].process(lm);
+                        $("status").textContent = statusText(S.ex, m);
+                        onMetrics(m);
                     } else {
                         $("status").textContent = "STEP BACK: FULL BODY NOT VISIBLE";
                         if (Date.now() - S.lastRender > 250) { S.lastRender = Date.now(); renderMetrics(null); }
@@ -396,6 +416,7 @@
             requestAnimationFrame(loop);
         }
 
+        // ---- camera ----
         let facing = "user";
         async function startCamera() {
             video.srcObject?.getTracks().forEach(t => t.stop());
@@ -403,18 +424,17 @@
                 video: { facingMode: { ideal: facing }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false
             });
             await video.play();
-            document.querySelector(".stage").classList.toggle("back", facing === "environment"); // only mirror the selfie camera
+            stage.classList.toggle("back", facing === "environment");   // only mirror the selfie camera
+            stage.style.setProperty("--ar", video.videoWidth / video.videoHeight);
             prev = null;
         }
-
         $("flip").onclick = async () => {
             facing = facing === "user" ? "environment" : "user";
             $("flip").textContent = "Camera: " + (facing === "user" ? "Front" : "Back");
-            if (S.on) {                       // switch live during a workout
-                try { await startCamera(); } catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; }
-            }
+            if (S.on) { try { await startCamera(); } catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; } }
         };
 
+        // ---- start / end ----
         $("start").onclick = async () => {
             try { await startCamera(); }
             catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; return; }
@@ -423,19 +443,19 @@
                 savedSets: 0, finished: false, lastCheck: 0, lastRender: 0
             });
             DETECTORS[S.ex].reset(); lastSpoken = 0; prev = null;
-            $("start").disabled = $("ex").disabled = $("sets").disabled = $("rps").disabled = true;
-            $("end").disabled = false;
-            $("mtitle").textContent = S.ex + " Metrics"; renderMetrics(null);
+            $("setup").hidden = true; $("livebar").hidden = false;     // video jumps to the top
+            $("planlabel").textContent = `${S.ex} · ${S.sets} × ${S.rps}`;
+            $("hudRep").textContent = `0 / ${S.rps}`; $("hudSet").textContent = `SET 1 / ${S.sets}`;
+            renderMetrics(null);
             speak("workout_started", {});
             loop();
         };
-
         $("end").onclick = () => {
             S.on = false;
             video.srcObject?.getTracks().forEach(t => t.stop());
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            $("start").disabled = $("ex").disabled = $("sets").disabled = $("rps").disabled = false;
-            $("end").disabled = true;
+            $("status").textContent = ""; $("nopose").style.display = "none";
+            $("setup").hidden = false; $("livebar").hidden = true;
             if (!S.finished) { S.finished = true; speak("workout_completed", {}); }
         };
     </script>
