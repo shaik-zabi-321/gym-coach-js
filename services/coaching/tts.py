@@ -2,7 +2,7 @@ from io import BytesIO
 from gtts import gTTS
 
 
-class TextToSpeech :
+class TextToSpeech:
     def speak(self, text, lang="en"):
         cleaned = (text or "").strip()
         if not cleaned:

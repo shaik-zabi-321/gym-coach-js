@@ -1,252 +1,73 @@
 <!doctype html>
 <html lang="en">
-
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Apna AI Coach</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Barlow:wght@400;500&family=JetBrains+Mono:wght@500&display=swap"
-        rel="stylesheet">
-    <style>
-        :root {
-            --bg: #0A0D14;
-            --panel: #14161C;
-            --card: #181A20;
-            --line: #2B2D33;
-            --text: #E8E4DC;
-            --dim: #8A8580;
-            --accent: #B8551F;
-            --accent-dim: #8C4419
-        }
-
-        * {
-            box-sizing: border-box
-        }
-
-        body {
-            margin: 0;
-            background: var(--bg);
-            color: var(--text);
-            font: 17px/1.6 Barlow, sans-serif
-        }
-
-        h1,
-        h2,
-        h3,
-        .btn,
-        .brand {
-            font-family: Oswald, sans-serif;
-            font-weight: 600;
-            letter-spacing: .01em
-        }
-
-        a {
-            color: inherit
-        }
-
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1040px;
-            margin: 0 auto;
-            padding: 20px 24px
-        }
-
-        .brand {
-            font-size: 1.4rem;
-            text-decoration: none
-        }
-
-        .btn {
-            display: inline-block;
-            background: var(--accent);
-            color: var(--bg);
-            border: 1px solid var(--accent);
-            padding: 12px 26px;
-            font-size: 1.05rem;
-            font-weight: 500;
-            text-decoration: none;
-            border-radius: 0;
-            transition: background .15s, border-color .15s
-        }
-
-        .btn:hover {
-            background: var(--accent-dim);
-            border-color: var(--accent-dim)
-        }
-
-        .btn:focus-visible {
-            outline: 2px solid var(--text);
-            outline-offset: 3px
-        }
-
-        .btn.quiet {
-            background: var(--card);
-            color: var(--text);
-            border-color: var(--line)
-        }
-
-        .btn.quiet:hover {
-            border-color: var(--accent-dim)
-        }
-
-        .wrap {
-            max-width: 1040px;
-            margin: 0 auto;
-            padding: 0 24px
-        }
-
-        .hero {
-            display: grid;
-            grid-template-columns: 1.1fr .9fr;
-            gap: 48px;
-            align-items: center;
-            padding: 56px 0 72px
-        }
-
-        h1 {
-            font-size: clamp(2.6rem, 6vw, 4.4rem);
-            line-height: 1.02;
-            margin: 0 0 20px
-        }
-
-        .lead {
-            color: var(--dim);
-            max-width: 46ch;
-            margin: 0 0 30px
-        }
-
-        .media {
-            aspect-ratio: 3/4;
-            background: var(--panel);
-            border: 1px solid var(--line);
-            display: grid;
-            place-items: center;
-            color: var(--dim);
-            text-align: center;
-            padding: 20px
-        }
-
-        .media video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            padding-bottom: 72px
-        }
-
-        .feat {
-            background: var(--card);
-            border-left: 2px solid var(--accent);
-            padding: 20px 22px
-        }
-
-        .feat h3 {
-            margin: 0 0 6px;
-            font-size: 1.25rem
-        }
-
-        .feat p {
-            margin: 0;
-            color: var(--dim);
-            font-size: .98rem
-        }
-
-        .exercises {
-            border-top: 1px solid var(--line);
-            padding: 36px 0;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center
-        }
-
-        .exercises span {
-            font-family: "JetBrains Mono", monospace;
-            font-size: .85rem;
-            border: 1px solid var(--line);
-            background: var(--card);
-            padding: 6px 12px
-        }
-
-        .cta {
-            background: var(--panel);
-            border-top: 1px solid var(--line);
-            text-align: center;
-            padding: 64px 24px
-        }
-
-        .cta h2 {
-            font-size: 2.2rem;
-            margin: 0 0 20px
-        }
-
-        @media(max-width:820px) {
-            .hero {
-                grid-template-columns: 1fr;
-                gap: 32px;
-                padding-top: 24px
-            }
-
-            .features {
-                grid-template-columns: 1fr
-            }
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apna AI Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Barlow:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0A0D14;--panel:#14161C;--card:#181A20;--line:#2B2D33;--text:#E8E4DC;--dim:#8A8580;--accent:#B8551F;--accent-dim:#8C4419}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 Barlow,sans-serif}
+  h1,h2,h3,.btn,.brand{font-family:Oswald,sans-serif;font-weight:600;letter-spacing:.01em}
+  a{color:inherit}
+  nav{display:flex;justify-content:space-between;align-items:center;max-width:1040px;margin:0 auto;padding:20px 24px}
+  .brand{font-size:1.4rem;text-decoration:none}
+  .btn{display:inline-block;background:var(--accent);color:var(--bg);border:1px solid var(--accent);padding:12px 26px;font-size:1.05rem;font-weight:500;text-decoration:none;border-radius:0;transition:background .15s,border-color .15s}
+  .btn:hover{background:var(--accent-dim);border-color:var(--accent-dim)}
+  .btn:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+  .btn.quiet{background:var(--card);color:var(--text);border-color:var(--line)}
+  .btn.quiet:hover{border-color:var(--accent-dim)}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px}
+  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;padding:56px 0 72px}
+  h1{font-size:clamp(2.6rem,6vw,4.4rem);line-height:1.02;margin:0 0 20px}
+  .lead{color:var(--dim);max-width:46ch;margin:0 0 30px}
+  .media{aspect-ratio:3/4;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;color:var(--dim);text-align:center;padding:20px}
+  .media video{width:100%;height:100%;object-fit:cover}
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding-bottom:72px}
+  .feat{background:var(--card);border-left:2px solid var(--accent);padding:20px 22px}
+  .feat h3{margin:0 0 6px;font-size:1.25rem}
+  .feat p{margin:0;color:var(--dim);font-size:.98rem}
+  .exercises{border-top:1px solid var(--line);padding:36px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .exercises span{font-family:"JetBrains Mono",monospace;font-size:.85rem;border:1px solid var(--line);background:var(--card);padding:6px 12px}
+  .cta{background:var(--panel);border-top:1px solid var(--line);text-align:center;padding:64px 24px}
+  .cta h2{font-size:2.2rem;margin:0 0 20px}
+  @media(max-width:820px){.hero{grid-template-columns:1fr;gap:32px;padding-top:24px}.features{grid-template-columns:1fr}}
+</style>
 </head>
-
 <body>
-    <nav>
-        <a class="brand" href="/">Apna AI Coach</a>
-        <a class="btn quiet" href="/coach">Start training</a>
-    </nav>
+<nav>
+  <a class="brand" href="/">Apna AI Coach</a>
+  <a class="btn quiet" href="/coach">Start training</a>
+</nav>
 
-    <div class="wrap">
-        <section class="hero">
-            <div>
-                <h1>A coach that watches your form and talks you through every rep.</h1>
-                <p class="lead">Open your camera, pick an exercise, and train. Pose detection runs on your phone or
-                    laptop, so it stays smooth and your video never leaves your device.</p>
-                <a class="btn" href="/coach">Start workout</a>
-            </div>
-            <!-- To use your clip: save it as static/media/hero.mp4, delete the .media div below, and uncomment the video -->
-            <div class="media">Add static/media/hero.mp4<br>(annotated workout loop)</div>
-            <!-- <video class="media" src="{{ url_for('static', filename='media/hero.mp4') }}" autoplay muted loop playsinline></video> -->
-        </section>
-
-        <section class="features">
-            <div class="feat">
-                <h3>Counts your reps</h3>
-                <p>Set your sets and reps. The coach tracks each rep and tells you when a set is done.</p>
-            </div>
-            <div class="feat">
-                <h3>Checks your form</h3>
-                <p>Sagging hips, leaning back, swinging elbows. Problems are caught while you are still mid-set.</p>
-            </div>
-            <div class="feat">
-                <h3>Speaks the correction</h3>
-                <p>Short voice cues tell you exactly what to fix, so you never have to look at the screen.</p>
-            </div>
-        </section>
-
-        <section class="exercises" aria-label="Supported exercises">
-            <span>Squats</span><span>Push-ups</span><span>Biceps curls</span><span>Shoulder
-                press</span><span>Lunges</span>
-        </section>
+<div class="wrap">
+  <section class="hero">
+    <div>
+      <h1>A coach that watches your form and talks you through every rep.</h1>
+      <p class="lead">Open your camera, pick an exercise, and train. Pose detection runs on your phone or laptop, so it stays smooth and your video never leaves your device.</p>
+      <a class="btn" href="/coach">Start workout</a>
     </div>
+    <!-- To use your clip: save it as static/media/hero.mp4, delete the .media div below, and uncomment the video -->
+    <div class="media">Add static/media/hero.mp4<br>(annotated workout loop)</div>
+    <!-- <video class="media" src="{{ url_for('static', filename='media/hero.mp4') }}" autoplay muted loop playsinline></video> -->
+  </section>
 
-    <section class="cta">
-        <h2>Ready for your first set?</h2>
-        <a class="btn" href="/coach">Start workout</a>
-    </section>
+  <section class="features">
+    <div class="feat"><h3>Counts your reps</h3><p>Set your sets and reps. The coach tracks each rep and tells you when a set is done.</p></div>
+    <div class="feat"><h3>Checks your form</h3><p>Sagging hips, leaning back, swinging elbows. Problems are caught while you are still mid-set.</p></div>
+    <div class="feat"><h3>Speaks the correction</h3><p>Short voice cues tell you exactly what to fix, so you never have to look at the screen.</p></div>
+  </section>
+
+  <section class="exercises" aria-label="Supported exercises">
+    <span>Squats</span><span>Push-ups</span><span>Biceps curls</span><span>Shoulder press</span><span>Lunges</span>
+  </section>
+</div>
+
+<section class="cta">
+  <h2>Ready for your first set?</h2>
+  <a class="btn" href="/coach">Start workout</a>
+</section>
 </body>
-
 </html>

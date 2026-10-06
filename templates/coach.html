@@ -1,209 +1,259 @@
-// Ported 1:1 from your Python detectors/ (same thresholds, same landmark indexes, same status strings).
-// Angles use normalized x,y exactly like core/base_exercise.py.
-const pt = (lm, i) => [lm[i].x, lm[i].y];
-function angle(a, b, c) {
-const ax = a[0] - b[0], ay = a[1] - b[1], cx = c[0] - b[0], cy = c[1] - b[1];
-const m = Math.hypot(ax, ay) * Math.hypot(cx, cy);
-if (m === 0) return 0;
-return Math.acos(Math.max(-1, Math.min(1, (ax * cx + ay * cy) / m))) * 180 / Math.PI;
-}
-const vis = (lm, ...idx) => idx.every(i => lm[i].visibility > 0.7);
-const visGE = (lm, ...idx) => idx.every(i => lm[i].visibility >= 0.7);
-const side = (lm, l, r) => lm[l].visibility >= lm[r].visibility;
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apna AI Coach</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Barlow:wght@400;500&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0A0D14;--panel:#14161C;--card:#181A20;--line:#2B2D33;--text:#E8E4DC;--dim:#8A8580;--accent:#B8551F}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 Barlow,sans-serif}
+  h1,label,button,.lbl{font-family:Oswald,sans-serif;font-weight:500;letter-spacing:.02em}
+  main{max-width:720px;margin:0 auto;padding:10px 12px 20px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .top h1{font-size:1.35rem;margin:4px 0}
+  button,select,input{background:var(--card);color:var(--text);border:1px solid var(--line);padding:10px 14px;font:inherit;border-radius:0}
+  button{cursor:pointer;font-family:Oswald,sans-serif}
+  button.primary{background:var(--accent);border-color:var(--accent);color:var(--bg);width:100%;font-size:1.1rem;padding:13px}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--line);padding:14px;margin:10px 0}
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  select,input{width:100%}
+  .bar{display:flex;gap:8px;align-items:center;margin:8px 0}
+  #planlabel{flex:1;font:500 1.05rem Oswald,sans-serif}
+  .bar button{padding:8px 14px}
 
-function squats() {
-let reps = 0, stage = null;
-return {
-reset() { reps = 0; stage = null; },
-process(lm) {
-const lk = angle(pt(lm, 23), pt(lm, 25), pt(lm, 27));
-const rk = angle(pt(lm, 24), pt(lm, 26), pt(lm, 28));
-const L = side(lm, 25, 26);
-const knee = L ? lk : rk;
-const [h, k, a, s] = L ? [23, 25, 27, 11] : [24, 26, 28, 12];
-const back = angle(pt(lm, s), pt(lm, h), pt(lm, k));
-if (visGE(lm, h, k, a)) {
-if (knee < 100) stage="down" ; if (knee>= 160 && stage === "down") { stage = "up"; reps++; }
+  /* Video on top. The box takes the camera's real shape and never taller than 58% of the screen. */
+  .stage{--ar:1.333;position:relative;width:min(100%,calc(58vh * var(--ar)));aspect-ratio:var(--ar);margin:0 auto;background:#000;border:1px solid var(--line)}
+  .stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;transform:scaleX(-1)}
+  .stage.back video,.stage.back canvas{transform:none}
+  #hud{position:absolute;left:10px;top:6px;display:flex;gap:12px;align-items:baseline;text-shadow:0 0 5px #000}
+  #hudRep{font:600 2.3rem "JetBrains Mono",monospace}
+  #hudSet{font:500 1rem Oswald,sans-serif}
+  #status{position:absolute;left:10px;bottom:8px;right:10px;color:#3ddc84;font:600 1rem Oswald,sans-serif;text-shadow:0 0 5px #000}
+  #nopose{position:absolute;left:10px;top:60px;color:#ffb347;font:600 1rem Oswald,sans-serif;display:none;text-shadow:0 0 5px #000}
+
+  /* Metrics: three small tiles right under the video, no scrolling needed */
+  .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+  .m{background:var(--card);border-left:2px solid var(--accent);padding:6px 10px;min-width:0}
+  .m .lbl{display:block;color:var(--dim);font-size:.75rem}
+  .m b{display:block;font:500 1rem "JetBrains Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #coachmsg{padding:10px 12px;background:#10281c;border-left:3px solid #3ddc84;color:#bff0d3;min-height:2.8em;font-size:.95rem}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <h1>AI GYM Coach</h1>
+    <button id="flip">Camera: Front</button>
+  </div>
+
+  <!-- Before the workout: set the plan -->
+  <section id="setup" class="panel">
+    <div class="field"><label for="ex">Exercise</label><select id="ex"></select></div>
+    <div class="row2">
+      <div class="field"><label for="sets">Sets</label><input id="sets" type="number" value="2" min="1" max="50"></div>
+      <div class="field"><label for="rps">Reps per set</label><input id="rps" type="number" value="10" min="1" max="50"></div>
+    </div>
+    <button class="primary" id="start" disabled>Loading model...</button>
+  </section>
+
+  <!-- During the workout: one slim bar, so the video sits at the top -->
+  <div id="livebar" class="bar" hidden>
+    <span id="planlabel"></span>
+    <button id="end">End</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div id="hud"><span id="hudRep">0 / 0</span><span id="hudSet">SET 0 / 0</span></div>
+    <div id="nopose">NO POSE DETECTED. FACE THE CAMERA</div>
+    <div id="status"></div>
+  </div>
+
+  <div class="chips" id="metrics"></div>
+  <div id="coachmsg" aria-live="polite">Pick your plan and press Start.</div>
+</main>
+
+<script type="module">
+import {PoseLandmarker, FilesetResolver} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+import {DETECTORS, METRIC_LABELS, POSE_CONNECTIONS, bodyVisible, statusText}
+  from "{{ url_for('static', filename='js/detectors.js') }}";
+
+const $ = id => document.getElementById(id);
+const video = $("video"), canvas = $("overlay"), ctx = canvas.getContext("2d"), stage = $("stage");
+Object.keys(DETECTORS).forEach(n => $("ex").add(new Option(n, n)));
+
+// Same "full" model as your Streamlit app. For slower phones swap "full" for "lite" in this URL.
+const MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
+let landmarker;
+(async () => {
+  const fs = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  landmarker = await PoseLandmarker.createFromOptions(fs, {
+    baseOptions: {modelAssetPath: MODEL, delegate: "GPU"}, runningMode: "VIDEO", numPoses: 1,
+    minPoseDetectionConfidence: .5, minPosePresenceConfidence: .5, minTrackingConfidence: .5});
+  $("start").textContent = "Start workout"; $("start").disabled = false;
+})();
+
+// ---- coach (mirrors VoicePipeline gating) ----
+let busy = false, playing = false, lastSpoken = 0;
+// One audio player reused for every cue. It is "unlocked" by the Start tap, because phones block sound that starts later without a tap.
+const player = new Audio();
+player.onended = player.onerror = () => playing = false;
+const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+const MAJOR = ["workout_started", "set_completed", "workout_completed"];
+async function speak(event, metrics) {
+  const major = MAJOR.includes(event);
+  const now = Date.now();
+  if (busy) return;
+  if (!major && (playing || now - lastSpoken < 5000)) return;
+  busy = true;
+  try {
+    const res = await fetch("/api/feedback", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({event, exercise: S.ex, metrics})});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error);
+    if (d.text) {
+      lastSpoken = Date.now();
+      $("coachmsg").textContent = "🤖 Coach: " + d.text;
+      if (d.audio) {
+        player.src = "data:" + d.audio_format + ";base64," + d.audio;
+        playing = true;
+        player.play().catch(() => { playing = false; $("coachmsg").textContent += "  (sound blocked: tap the screen once)"; });
+      } else {
+        $("coachmsg").textContent += "  (voice unavailable)";
+      }
     }
-    let depth = "N/A";
-    if (stage === "down") depth = knee <= 100 ? "GOOD DEPTH" : "TOO HIGH" ; else if (stage==="up" || knee>= 160) depth =
-        "STANDING";
-        return {reps, knee_angle: Math.trunc(knee), back_angle: Math.trunc(back), depth_status: depth};
-        }
-        };
-        }
+  } catch (e) { console.error(e); $("coachmsg").textContent = "Coach error: " + e.message; }
+  busy = false;
+}
 
-        function pushups() {
-        let reps = 0, stage = null;
-        return {
-        reset() { reps = 0; stage = null; },
-        process(lm) {
-        const [s, e, w, h, a] = side(lm, 13, 14) ? [11, 13, 15, 23, 27] : [12, 14, 16, 24, 28];
-        const elbow = angle(pt(lm, s), pt(lm, e), pt(lm, w));
-        const body = angle(pt(lm, s), pt(lm, h), pt(lm, a));
-        const dev = lm[h].y - (lm[s].y + lm[a].y) / 2;
-        if (vis(lm, s, e, w, h)) {
-        if (elbow < 90) stage="down" ; if (elbow> 160 && stage === "down") { stage = "up"; reps++; }
-            }
-            const alignment = body > 160 ? "Straight" : body > 140 ? "Slight Bend" : "Poor Form";
-            const hip = Math.abs(dev) <= 0.08 ? "LEVEL" : dev> 0.08 ? "SAGGING" : "PIKED UP";
-                return {reps, elbow_angle: Math.trunc(elbow), body_alignment: alignment, hip_status: hip};
-                }
-                };
-                }
+// ---- workout state (mirrors metrics.py) ----
+const S = {on: false, ex: "", sets: 0, rps: 0, savedSets: 0, finished: false, lastCheck: 0, lastRender: 0};
 
-                function curls() {
-                let reps = 0, stage = null;
-                return {
-                reset() { reps = 0; stage = null; },
-                process(lm) {
-                const [s, e, w] = side(lm, 13, 14) ? [11, 13, 15] : [12, 14, 16];
-                const elbow = angle(pt(lm, s), pt(lm, e), pt(lm, w));
-                if (vis(lm, s, e, w)) {
-                if (elbow < 50) stage="up" ; if (elbow> 160 && stage === "up") { stage = "down"; reps++; }
-                    }
-                    const shoulder = Math.abs(lm[e].x - lm[s].x) <= 0.12 ? "STABLE" : "ELBOW DRIFTING" ; const
-                        dx=(lm[11].x + lm[12].x) / 2 - (lm[23].x + lm[24].x) / 2; const dy=(lm[11].y + lm[12].y) / 2 -
-                        (lm[23].y + lm[24].y) / 2; const torso=dy !==0 ? Math.atan2(Math.abs(dx), Math.abs(dy)) * 180 /
-                        Math.PI : 0; return {reps, elbow_angle: Math.trunc(elbow), shoulder_status: shoulder,
-                        swing_status: !(lm[23].visibility> 0.6 && lm[24].visibility > 0.6) ? "N/A"
-                        : torso <= 15 ? "NO SWING" : "SWINGING" }; } }; } function press() { let reps=0, stage=null;
-                            return { reset() { reps=0; stage=null; }, process(lm) { const [s, e, w, h, k]=side(lm, 13,
-                            14) ? [11, 13, 15, 23, 25] : [12, 14, 16, 24, 26]; const elbow=angle(pt(lm, s), pt(lm, e),
-                            pt(lm, w)); if (vis(lm, s, e, w)) { // NEW: arm must be extended with the hand ABOVE the
-                            shoulder, so a bicep curl is not counted as a press if (elbow> 160 && lm[w].y < lm[s].y)
-                                stage="up" ; if (elbow < 90 && stage==="up" ) { stage="down" ; reps++; } } const
-                                ext=elbow>= 160 ? "FULL EXTENSION" : elbow >= 130 ? "NEARLY EXTENDED"
-                                : elbow >= 90 ? "PRESSING" : "START POSITION";
-                                // Back arch needs hip AND knee in view. If the camera only sees your upper body, say
-                                N/A instead of hiding everything.
-                                const lowerOk = lm[h].visibility > 0.6 && lm[k].visibility > 0.6;
-                                const back = angle(pt(lm, s), pt(lm, h), pt(lm, k));
-                                const arch = !lowerOk ? "N/A" : back >= 160 ? "Neutral" : back >= 140 ? "Slight Arch" :
-                                "Excessive Arch";
-                                return {reps, elbow_angle: Math.trunc(elbow), extension_status: ext, back_arch_status:
-                                arch};
-                                }
-                                };
-                                }
+function renderMetrics(m) {
+  const box = $("metrics"); box.innerHTML = "";
+  for (const [key, label, unit] of METRIC_LABELS[S.ex]) {
+    const d = document.createElement("div"); d.className = "m";
+    d.innerHTML = `<span class="lbl">${label}</span><b>${m ? m[key] : "-"}${m && unit ? unit : ""}</b>`;
+    box.appendChild(d);
+  }
+}
 
-                                function lunges() {
-                                let reps = 0, stage = null;
-                                return {
-                                reset() { reps = 0; stage = null; },
-                                process(lm) {
-                                const lk = angle(pt(lm, 23), pt(lm, 25), pt(lm, 27));
-                                const rk = angle(pt(lm, 24), pt(lm, 26), pt(lm, 28));
-                                const L = lk <= rk; const front=L ? lk : rk; const [h, k, a, s]=L ? [23, 25, 27, 11] :
-                                    [24, 26, 28, 12]; if (vis(lm, h, k, a)) { if (front < 100) stage="down" ; if (front>
-                                    160 && stage === "down") { stage = "up"; reps++; }
-                                    }
-                                    const torso = angle(pt(lm, s), pt(lm, h), pt(lm, k));
-                                    const off = Math.abs((lm[11].x + lm[12].x) / 2 - (lm[23].x + lm[24].x) / 2);
-                                    return {reps, front_knee_angle: Math.trunc(front), torso_angle: Math.trunc(torso),
-                                    balance_status: off <= 0.10 ? "BALANCED" : "OFF BALANCE" }; } }; }
-                                        //=====================================================================//
-                                        DEADLIFT (SIDE VIEW ONLY: the camera must see you from the side) // Every line
-                                        is explained so you can learn from it and change it.
-                                        //=====================================================================function
-                                        deadlifts() { // ---- Numbers you can tune. Change them, save, refresh, test
-                                        again. ---- const HIP_BOTTOM=110; // hip angle below this=you are down at the
-                                        bar const HIP_LOCKOUT=165; // hip angle above this=you are standing tall
-                                        (lockout) const NECK_MIN=140; // ear-shoulder-hip angle below this=back/neck
-                                        line is breaking const BAR_MAX=0.35; // how far the hands may be from the ankles
-                                        (as a share of torso length) const MIN_REP_MS=1200; // a rep cannot be counted
-                                        faster than this (blocks false counts) // ---- Memory: values that survive from
-                                        one video frame to the next ---- let reps=0; // total reps so far (let=a value
-                                        that can change) let stage="up" ; // "up"=standing, "down"=at the bottom let
-                                        lastRepAt=0; // the time the last rep was counted return { // this object has
-                                        two functions: reset and process reset() { // called when a new workout starts
-                                        reps=0; stage="up" ; lastRepAt=0; }, process(lm) { // called for every frame.
-                                        lm=the 33 body points // Pick the side of the body the camera sees best (left or
-                                        right). const left=side(lm, 23, 24); // Choose the point numbers for that side:
-                                        ear, shoulder, wrist, hip, knee, ankle. // [a, b, c]=[1, 2, 3]
-                                        means "put the first value in a, second in b, third in c" . const [ear, sh, wr,
-                                        hip, knee, ank]=left ? [7, 11, 15, 23, 25, 27] : [8, 12, 16, 24, 26, 28]; //
-                                        angle(A, B, C)=the angle at B. pt(lm, n)=the x,y position of point n. const
-                                        hipAngle=angle(pt(lm, sh), pt(lm, hip), pt(lm, knee)); // hinge at the hip const
-                                        neckAngle=angle(pt(lm, ear), pt(lm, sh), pt(lm, hip)); // head-to-hip line //
-                                        Length of the torso (shoulder to hip), measured as a straight-line distance.
-                                        const torsoLen=Math.hypot(lm[sh].x - lm[hip].x, lm[sh].y - lm[hip].y); // How
-                                        far the hands are from the ankles sideways. A bar should stay over mid-foot. //
-                                        Math.abs removes the minus sign. We divide by torsoLen so it works at any
-                                        distance. const barOffset=torsoLen> 0 ? Math.abs(lm[wr].x - lm[ank].x) /
-                                        torsoLen : 0;
+function onMetrics(m, ok) {
+  const reps = m.reps, setsDone = Math.floor(reps / S.rps), cur = reps % S.rps;
+  const complete = setsDone >= S.sets;
+  const t = Date.now();
+  if (t - S.lastRender > 250) {            // refresh numbers 4x/sec so they are readable
+    S.lastRender = t;
+    $("hudRep").textContent = `${cur} / ${S.rps}`;
+    $("hudSet").textContent = complete ? "WORKOUT DONE" : `SET ${setsDone + 1} / ${S.sets}`;
+    renderMetrics(m);
+  }
+  if (setsDone > S.savedSets) {            // TODO phase 2: POST to /api/workouts to save in DB
+    S.savedSets = setsDone;
+    if (!complete) speak("set_completed", m);
+  }
+  if (complete && !S.finished) { S.finished = true; speak("workout_completed", m); return; }
+  if (S.finished) return;
+  const now = Date.now();
+  if (ok && now - S.lastCheck > 1500) { S.lastCheck = now; speak("ongoing_form_check", m); }
+}
 
-                                        const now = Date.now(); // the current time in milliseconds
+function draw(lm) {
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  if (!lm) return;
+  ctx.strokeStyle = "#00ff00"; ctx.lineWidth = 6;
+  for (const [a, b] of POSE_CONNECTIONS)
+    if (lm[a].visibility > .7 && lm[b].visibility > .7) {
+      ctx.beginPath(); ctx.moveTo(lm[a].x * w, lm[a].y * h); ctx.lineTo(lm[b].x * w, lm[b].y * h); ctx.stroke(); }
+  ctx.fillStyle = "#2f6bff";
+  for (const p of lm) if (p.visibility > .7) { ctx.beginPath(); ctx.arc(p.x * w, p.y * h, 6, 0, 7); ctx.fill(); }
+}
 
-                                        // ---- Rep counting ----
-                                        // vis(...) = true only when the camera clearly sees those points. No clear view
-                                        = no counting.
-                                        if (vis(lm, sh, hip, knee)) {
-                                        if (hipAngle < HIP_BOTTOM) { // you reached the bottom stage="down" ; } if
-                                            (hipAngle> HIP_LOCKOUT && stage === "down") { // you came back up to lockout
-                                            stage = "up";
-                                            if (now - lastRepAt > MIN_REP_MS) { // only count if enough time passed
-                                            reps++; // reps = reps + 1
-                                            lastRepAt = now;
-                                            }
-                                            }
-                                            }
+// light smoothing so landmarks do not jitter frame to frame
+let prev = null;
+function smooth(lm) {
+  const a = 0.5;
+  prev = prev && prev.length === lm.length
+    ? lm.map((p, i) => ({x: a * p.x + (1 - a) * prev[i].x, y: a * p.y + (1 - a) * prev[i].y, visibility: p.visibility}))
+    : lm.map(p => ({x: p.x, y: p.y, visibility: p.visibility}));
+  return prev;
+}
 
-                                            // ---- Form checks ----
-                                            const hinged = hipAngle < 150; // true when you are bent over // Only judge
-                                                the back while you are hinged. The ? : is a short if/else. const
-                                                backStatus=!hinged ? "STANDING" : neckAngle>= NECK_MIN ? "NEUTRAL" :
-                                                "ROUNDING";
-                                                const barStatus = barOffset <= BAR_MAX ? "CLOSE" : "DRIFTING" ; // Send
-                                                    the results back. Math.trunc cuts off the decimals. return {reps,
-                                                    hip_angle: Math.trunc(hipAngle), back_status: backStatus,
-                                                    bar_status: barStatus}; } }; } export const DETECTORS={ "Squats" :
-                                                    squats(), "Push-ups" : pushups(), "Biceps Curls (Dumbbell)" :
-                                                    curls(), "Shoulder Press" : press(), "Lunges" : lunges(), "Deadlift"
-                                                    : deadlifts() }; // Sidebar metric labels from your app.py export
-                                                    const METRIC_LABELS={ "Squats" : [["knee_angle", "Knee Angle" , "°"
-                                                    ], ["back_angle", "Back Angle" , "°" ],
-                                                    ["depth_status", "Depth Status" ]], "Push-ups" :
-                                                    [["elbow_angle", "Elbow Angle" , "°" ],
-                                                    ["body_alignment", "Body Alignment" ], ["hip_status", "Hip Position"
-                                                    ]], "Biceps Curls (Dumbbell)" : [["elbow_angle", "Elbow Angle" , "°"
-                                                    ], ["shoulder_status", "Shoulder Stability" ],
-                                                    ["swing_status", "Swing Detection" ]], "Shoulder Press" :
-                                                    [["elbow_angle", "Elbow Angle" , "°" ],
-                                                    ["extension_status", "Arm Extension" ],
-                                                    ["back_arch_status", "Back Arch" ]], "Deadlift" :
-                                                    [["hip_angle", "Hip Angle" , "°" ], ["back_status", "Back Position"
-                                                    ], ["bar_status", "Bar Path" ]], "Lunges" :
-                                                    [["front_knee_angle", "Front Knee Angle" , "°" ],
-                                                    ["torso_angle", "Torso Angle" , "°" ],
-                                                    ["balance_status", "Balance Status" ]] }; export const
-                                                    POSE_CONNECTIONS=[
-                                                    [11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],
-                                                    [23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32],[27,31],[28,32]
-                                                    ]; // Is the body part this exercise needs actually visible? (stops
-                                                    garbage readings when you are just standing there) const
-                                                    NEED={ "Squats" : [[23, 25, 27], [24, 26, 28]], "Push-ups" : [[11,
-                                                    13, 15, 23, 27], [12, 14, 16, 24, 28]], "Biceps Curls (Dumbbell)" :
-                                                    [[11, 13, 15], [12, 14, 16]], "Shoulder Press" : [[11, 13, 15], [12,
-                                                    14, 16]], "Deadlift" : [[7, 11, 15, 23, 25, 27], [8, 12, 16, 24, 26,
-                                                    28]], "Lunges" : [[23, 24, 25, 26, 27, 28], [23, 24, 25, 26, 27,
-                                                    28]] }; export function bodyVisible(ex, lm) { return
-                                                    NEED[ex].some(set=> set.every(i => lm[i].visibility > 0.6));
-                                                    }
+let last = -1;
+function loop() {
+  if (!S.on) return;
+  if (video.readyState >= 2 && video.currentTime !== last) {
+    last = video.currentTime;
+    const r = landmarker.detectForVideo(video, performance.now());
+    if (r.landmarks.length) {
+      $("nopose").style.display = "none";
+      const lm = smooth(r.landmarks[0]);
+      draw(lm);
+      // Always show the live numbers. If the camera is unsure, dim them and warn, and do not coach on shaky data.
+      const ok = bodyVisible(S.ex, lm);
+      const m = DETECTORS[S.ex].process(lm);
+      $("status").textContent = statusText(S.ex, m) + (ok ? "" : "  ·  LOW CONFIDENCE, MOVE BACK");
+      $("metrics").style.opacity = ok ? 1 : 0.55;
+      onMetrics(m, ok);
+    } else {
+      prev = null; $("status").textContent = ""; draw(null); $("nopose").style.display = "block";
+      if (!S.finished && Date.now() - S.lastCheck > 5000) { S.lastCheck = Date.now(); speak("no_pose_detected", {
+        issue: "No pose detected. Step into the camera frame and make sure your full body is visible."}); }
+    }
+  }
+  requestAnimationFrame(loop);
+}
 
-                                                    // Status text your Streamlit version drew on the video
-                                                    export function statusText(ex, m) {
-                                                    if (!m) return "";
-                                                    switch (ex) {
-                                                    case "Squats": return `DEPTH: ${m.depth_status}`;
-                                                    case "Push-ups": return `BODY: ${m.body_alignment} | HIP:
-                                                    ${m.hip_status}`;
-                                                    case "Biceps Curls (Dumbbell)": return `SWING: ${m.swing_status}`;
-                                                    case "Shoulder Press": return `EXT: ${m.extension_status} | BACK:
-                                                    ${m.back_arch_status}`;
-                                                    case "Deadlift": return `BACK: ${m.back_status} | BAR:
-                                                    ${m.bar_status}`;
-                                                    case "Lunges": return `BALANCE: ${m.balance_status}`;
-                                                    }
-                                                    return "";
-                                                    }
+// ---- camera ----
+let facing = "user";
+async function startCamera() {
+  video.srcObject?.getTracks().forEach(t => t.stop());
+  video.srcObject = await navigator.mediaDevices.getUserMedia({
+    video: {facingMode: {ideal: facing}, width: {ideal: 640}, height: {ideal: 480}}, audio: false});
+  await video.play();
+  stage.classList.toggle("back", facing === "environment");   // only mirror the selfie camera
+  stage.style.setProperty("--ar", video.videoWidth / video.videoHeight);
+  prev = null;
+}
+$("flip").onclick = async () => {
+  facing = facing === "user" ? "environment" : "user";
+  $("flip").textContent = "Camera: " + (facing === "user" ? "Front" : "Back");
+  if (S.on) { try { await startCamera(); } catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; } }
+};
+
+// ---- start / end ----
+$("start").onclick = async () => {
+  player.src = SILENT; player.play().catch(() => {});   // unlock sound inside the tap
+  try { await startCamera(); }
+  catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; return; }
+  Object.assign(S, {on: true, ex: $("ex").value, sets: +$("sets").value || 1, rps: +$("rps").value || 1,
+                    savedSets: 0, finished: false, lastCheck: 0, lastRender: 0});
+  DETECTORS[S.ex].reset(); lastSpoken = 0; prev = null;
+  $("setup").hidden = true; $("livebar").hidden = false;     // video jumps to the top
+  $("planlabel").textContent = `${S.ex} · ${S.sets} × ${S.rps}`;
+  $("hudRep").textContent = `0 / ${S.rps}`; $("hudSet").textContent = `SET 1 / ${S.sets}`;
+  renderMetrics(null);
+  speak("workout_started", {});
+  loop();
+};
+$("end").onclick = () => {
+  S.on = false;
+  video.srcObject?.getTracks().forEach(t => t.stop());
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  $("status").textContent = ""; $("nopose").style.display = "none";
+  $("setup").hidden = false; $("livebar").hidden = true;
+  if (!S.finished) { S.finished = true; speak("workout_completed", {}); }
+};
+</script>
+</body>
+</html>
