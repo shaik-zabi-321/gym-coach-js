@@ -28,7 +28,7 @@ function squats() {
             }
             let depth = "N/A";
             if (stage === "down") depth = knee <= 100 ? "GOOD DEPTH" : "TOO HIGH";
-            else if (stage === "up") depth = "STANDING";
+            else if (stage === "up" || knee >= 160) depth = "STANDING";
             return { reps, knee_angle: Math.trunc(knee), back_angle: Math.trunc(back), depth_status: depth };
         }
     };
@@ -71,7 +71,8 @@ function curls() {
             const torso = dy !== 0 ? Math.atan2(Math.abs(dx), Math.abs(dy)) * 180 / Math.PI : 0;
             return {
                 reps, elbow_angle: Math.trunc(elbow), shoulder_status: shoulder,
-                swing_status: torso <= 15 ? "NO SWING" : "SWINGING"
+                swing_status: !(lm[23].visibility > 0.6 && lm[24].visibility > 0.6) ? "N/A"
+                    : torso <= 15 ? "NO SWING" : "SWINGING"
             };
         }
     };
@@ -91,8 +92,10 @@ function press() {
             }
             const ext = elbow >= 160 ? "FULL EXTENSION" : elbow >= 130 ? "NEARLY EXTENDED"
                 : elbow >= 90 ? "PRESSING" : "START POSITION";
+            // Back arch needs hip AND knee in view. If the camera only sees your upper body, say N/A instead of hiding everything.
+            const lowerOk = lm[h].visibility > 0.6 && lm[k].visibility > 0.6;
             const back = angle(pt(lm, s), pt(lm, h), pt(lm, k));
-            const arch = back >= 160 ? "Neutral" : back >= 140 ? "Slight Arch" : "Excessive Arch";
+            const arch = !lowerOk ? "N/A" : back >= 160 ? "Neutral" : back >= 140 ? "Slight Arch" : "Excessive Arch";
             return { reps, elbow_angle: Math.trunc(elbow), extension_status: ext, back_arch_status: arch };
         }
     };
@@ -168,14 +171,17 @@ function deadlifts() {
             const now = Date.now();  // the current time in milliseconds
 
             // ---- Rep counting ----
-            if (hipAngle < HIP_BOTTOM) {               // you reached the bottom
-                stage = "down";
-            }
-            if (hipAngle > HIP_LOCKOUT && stage === "down") {   // you came back up to lockout
-                stage = "up";
-                if (now - lastRepAt > MIN_REP_MS) {      // only count if enough time passed
-                    reps++;                                // reps = reps + 1
-                    lastRepAt = now;
+            // vis(...) = true only when the camera clearly sees those points. No clear view = no counting.
+            if (vis(lm, sh, hip, knee)) {
+                if (hipAngle < HIP_BOTTOM) {             // you reached the bottom
+                    stage = "down";
+                }
+                if (hipAngle > HIP_LOCKOUT && stage === "down") {   // you came back up to lockout
+                    stage = "up";
+                    if (now - lastRepAt > MIN_REP_MS) {    // only count if enough time passed
+                        reps++;                              // reps = reps + 1
+                        lastRepAt = now;
+                    }
                 }
             }
 
@@ -214,8 +220,8 @@ export const POSE_CONNECTIONS = [
 const NEED = {
     "Squats": [[23, 25, 27], [24, 26, 28]],
     "Push-ups": [[11, 13, 15, 23, 27], [12, 14, 16, 24, 28]],
-    "Biceps Curls (Dumbbell)": [[11, 13, 15, 23], [12, 14, 16, 24]],
-    "Shoulder Press": [[11, 13, 15, 23, 25], [12, 14, 16, 24, 26]],
+    "Biceps Curls (Dumbbell)": [[11, 13, 15], [12, 14, 16]],
+    "Shoulder Press": [[11, 13, 15], [12, 14, 16]],
     "Deadlift": [[7, 11, 15, 23, 25, 27], [8, 12, 16, 24, 26, 28]],
     "Lunges": [[23, 24, 25, 26, 27, 28], [23, 24, 25, 26, 27, 28]]
 };
