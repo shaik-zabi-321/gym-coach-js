@@ -131,64 +131,84 @@ function deadlifts() {
   const HIP_BOTTOM  = 110;   // hip angle below this = you are down at the bar
   const HIP_LOCKOUT = 165;   // hip angle above this = you are standing tall (lockout)
   const NECK_MIN    = 140;   // ear-shoulder-hip angle below this = back/neck line is breaking
-  const BAR_MAX     = 0.35;  // how far the hands may be from the ankles (as a share of torso length)
-  const MIN_REP_MS  = 1200;  // a rep cannot be counted faster than this (blocks false counts)
+  const BAR_MAX     = 0.35;  // how far FORWARD of mid-foot the hands may be (share of torso length)
+  const MIN_REP_MS  = 1200;  // a rep cannot be counted faster than this
+  const SIDE_MARGIN = 0.3;   // the other side must look this much better before we switch sides
+  const DRIFT_FRAMES = 6;    // bar must look off for this many frames in a row (about 0.2 s)
+  const SMOOTH      = 0.4;   // 0 to 1. Lower = steadier hip angle, higher = faster reaction
 
   // ---- Memory: values that survive from one video frame to the next ----
-  let reps = 0;              // total reps so far (let = a value that can change)
-  let stage = "up";          // "up" = standing, "down" = at the bottom
-  let lastRepAt = 0;         // the time the last rep was counted
+  let reps = 0, stage = "up", lastRepAt = 0;
+  let leftSide = null;       // which side of your body we follow. null = not chosen yet
+  let hipSmooth = null;      // the hip angle after smoothing
+  let driftCount = 0;        // how many frames in a row the bar looked too far forward
+  let lastGood = null;       // the last result computed from a clear view
 
-  return {                   // this object has two functions: reset and process
+  return {
     reset() {                // called when a new workout starts
-      reps = 0;
-      stage = "up";
-      lastRepAt = 0;
+      reps = 0; stage = "up"; lastRepAt = 0;
+      leftSide = null; hipSmooth = null; driftCount = 0; lastGood = null;
     },
 
-    process(lm) {            // called for every frame. lm = the 33 body points
-      // Pick the side of the body the camera sees best (left or right).
-      const left = side(lm, 23, 24);
-      // Choose the point numbers for that side: ear, shoulder, wrist, hip, knee, ankle.
-      // [a, b, c] = [1, 2, 3] means "put the first value in a, second in b, third in c".
-      const [ear, sh, wr, hip, knee, ank] = left ? [7, 11, 15, 23, 25, 27]
-                                                 : [8, 12, 16, 24, 26, 28];
+    // lm = the 33 body points. aspect = video width / height (fixes squashed angles).
+    process(lm, aspect = 1) {
+      // 1. Choose a side ONCE and keep it. Switching sides frame to frame mixes left and right
+      //    points and causes sudden wrong angles. We switch only if the other side is clearly better.
+      const lv = lm[23].visibility + lm[25].visibility + lm[27].visibility;   // left side score
+      const rv = lm[24].visibility + lm[26].visibility + lm[28].visibility;   // right side score
+      if (leftSide === null) leftSide = lv >= rv;
+      else if (leftSide && rv > lv + SIDE_MARGIN) leftSide = false;
+      else if (!leftSide && lv > rv + SIDE_MARGIN) leftSide = true;
 
-      // angle(A, B, C) = the angle at B. pt(lm, n) = the x,y position of point n.
-      const hipAngle = angle(pt(lm, sh), pt(lm, hip), pt(lm, knee));  // hinge at the hip
-      const neckAngle = angle(pt(lm, ear), pt(lm, sh), pt(lm, hip));  // head-to-hip line
+      // Point numbers for our side: ear, shoulder, wrist, hip, knee, ankle, heel, toe.
+      const [ear, sh, wr, hip, knee, ank, heel, toe] = leftSide
+        ? [7, 11, 15, 23, 25, 27, 29, 31] : [8, 12, 16, 24, 26, 28, 30, 32];
 
-      // Length of the torso (shoulder to hip), measured as a straight-line distance.
-      const torsoLen = Math.hypot(lm[sh].x - lm[hip].x, lm[sh].y - lm[hip].y);
-      // How far the hands are from the ankles sideways. A bar should stay over mid-foot.
-      // Math.abs removes the minus sign. We divide by torsoLen so it works at any distance.
-      const barOffset = torsoLen > 0 ? Math.abs(lm[wr].x - lm[ank].x) / torsoLen : 0;
+      // 2. If the camera cannot clearly see shoulder, hip and knee, do NOT trust this frame.
+      //    Keep showing the last good numbers instead of a glitchy one.
+      if (!vis(lm, sh, hip, knee) && lastGood) return {...lastGood, reps};
 
-      const now = Date.now();  // the current time in milliseconds
+      // P(n) = position of point n. We multiply x by aspect so angles are not squashed.
+      const P = n => [lm[n].x * aspect, lm[n].y];
+
+      // 3. Hip angle, smoothed so one bad frame cannot jump it from 175 to 138.
+      const hipRaw = angle(P(sh), P(hip), P(knee));
+      hipSmooth = hipSmooth === null ? hipRaw : hipSmooth + SMOOTH * (hipRaw - hipSmooth);
+      const hipAngle = hipSmooth;
+
+      // 4. Back/neck line (needs the ear to be visible)
+      const earOk = lm[ear].visibility > 0.5;
+      const neckAngle = angle(P(ear), P(sh), P(hip));
+
+      // 5. Bar position. The bar hangs over MID-FOOT, so compare the hands with the middle
+      //    of the foot (heel and toe), not the ankle joint which sits behind the foot.
+      const footOk = lm[heel].visibility > 0.5 && lm[toe].visibility > 0.5;
+      const midfootX = footOk ? (lm[heel].x + lm[toe].x) / 2 : lm[ank].x;
+      const facing = footOk ? Math.sign(lm[toe].x - lm[heel].x) : 0;    // +1 or -1 = which way you face
+      const torsoLen = Math.hypot((lm[sh].x - lm[hip].x) * aspect, lm[sh].y - lm[hip].y);
+      const handsOffset = (lm[wr].x - midfootX) * aspect / (torsoLen || 1);
+      // Only FORWARD drift (toward the way you face) is a problem. Without foot points, use distance.
+      const forwardDrift = facing !== 0 ? handsOffset * facing : Math.abs(handsOffset);
+
+      const hinged = hipAngle < 150;                       // true when you are bent over
+      driftCount = hinged && forwardDrift > BAR_MAX ? driftCount + 1 : 0;   // count frames in a row
 
       // ---- Rep counting ----
-      // vis(...) = true only when the camera clearly sees those points. No clear view = no counting.
+      const now = Date.now();
       if (vis(lm, sh, hip, knee)) {
-        if (hipAngle < HIP_BOTTOM) {             // you reached the bottom
-          stage = "down";
-        }
-        if (hipAngle > HIP_LOCKOUT && stage === "down") {   // you came back up to lockout
+        if (hipAngle < HIP_BOTTOM) stage = "down";
+        if (hipAngle > HIP_LOCKOUT && stage === "down") {
           stage = "up";
-          if (now - lastRepAt > MIN_REP_MS) {    // only count if enough time passed
-            reps++;                              // reps = reps + 1
-            lastRepAt = now;
-          }
+          if (now - lastRepAt > MIN_REP_MS) { reps++; lastRepAt = now; }
         }
       }
 
-      // ---- Form checks ----
-      const hinged = hipAngle < 150;             // true when you are bent over
-      // Only judge the back while you are hinged. The ? : is a short if/else.
-      const backStatus = !hinged ? "STANDING" : neckAngle >= NECK_MIN ? "NEUTRAL" : "ROUNDING";
-      const barStatus  = barOffset <= BAR_MAX ? "CLOSE" : "DRIFTING";
+      // ---- Status words ----
+      const backStatus = !hinged ? "STANDING" : !earOk ? "N/A" : neckAngle >= NECK_MIN ? "NEUTRAL" : "ROUNDING";
+      const barStatus  = !hinged ? "STANDING" : driftCount >= DRIFT_FRAMES ? "DRIFTING" : "CLOSE";
 
-      // Send the results back. Math.trunc cuts off the decimals.
-      return {reps, hip_angle: Math.trunc(hipAngle), back_status: backStatus, bar_status: barStatus};
+      lastGood = {reps, hip_angle: Math.trunc(hipAngle), back_status: backStatus, bar_status: barStatus};
+      return lastGood;
     }
   };
 }
@@ -222,7 +242,7 @@ const NEED = {
   "Lunges": [[23, 24, 25, 26, 27, 28], [23, 24, 25, 26, 27, 28]]
 };
 export function bodyVisible(ex, lm) {
-  return NEED[ex].some(set => set.every(i => lm[i].visibility > 0.6));
+  return NEED[ex].some(set => set.every(i => lm[i].visibility > 0.5));
 }
 
 // Status text your Streamlit version drew on the video

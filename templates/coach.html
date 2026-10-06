@@ -43,6 +43,7 @@
   .m{background:var(--card);border-left:2px solid var(--accent);padding:6px 10px;min-width:0}
   .m .lbl{display:block;color:var(--dim);font-size:.75rem}
   .m b{display:block;font:500 1rem "JetBrains Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #dbg{font:12px/1.5 "JetBrains Mono",monospace;color:var(--dim);margin-top:6px;word-break:break-word}
   #coachmsg{padding:10px 12px;background:#10281c;border-left:3px solid #3ddc84;color:#bff0d3;min-height:2.8em;font-size:.95rem}
 </style>
 </head>
@@ -79,6 +80,7 @@
 
   <div class="chips" id="metrics"></div>
   <div id="coachmsg" aria-live="polite">Pick your plan and press Start.</div>
+  <div id="dbg"></div>
 </main>
 
 <script type="module">
@@ -102,25 +104,36 @@ let landmarker;
 })();
 
 // ---- coach (mirrors VoicePipeline gating) ----
-let busy = false, playing = false, lastSpoken = 0;
+let busy = false, playing = false, lastSpoken = 0, lastKind = "";
 // One audio player reused for every cue. It is "unlocked" by the Start tap, because phones block sound that starts later without a tap.
 const player = new Audio();
 player.onended = player.onerror = () => playing = false;
 const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+const DBG = {ok: null, sent: 0, server: "-"};
+function dbg() {
+  const ago = lastSpoken ? Math.round((Date.now() - lastSpoken) / 1000) + "s ago" : "never";
+  $("dbg").textContent = `camera confidence: ${DBG.ok === false ? "LOW (coach paused)" : "OK"} | checks sent: ${DBG.sent} | server: ${DBG.server} | last cue: ${ago}`;
+}
 const MAJOR = ["workout_started", "set_completed", "workout_completed"];
 async function speak(event, metrics) {
   const major = MAJOR.includes(event);
   const now = Date.now();
-  if (busy) return;
-  if (!major && (playing || now - lastSpoken < 5000)) return;
-  busy = true;
+  if (busy) { DBG.server = "waiting for previous request"; return; }
+  if (!major && playing) { DBG.server = "waiting: audio is playing"; return; }
+  if (!major && now - lastSpoken < 5000) { DBG.server = "cooldown (5s between cues)"; return; }
+  busy = true; DBG.sent++;
+  const t0 = Date.now();
   try {
     const res = await fetch("/api/feedback", {method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({event, exercise: S.ex, metrics})});
     const d = await res.json();
     if (!res.ok) throw new Error(d.error);
-    if (d.text) {
-      lastSpoken = Date.now();
+    // Throw away answers that are out of date: too slow, or "step into frame" after you are back in frame.
+    const stale = (!major && Date.now() - t0 > 4000) || (event === "no_pose_detected" && S.poseOk);
+    DBG.server = stale ? "discarded (answer arrived too late)"
+               : d.text ? "issue found: " + (d.issue || "(event)") : (d.note || "no form issue found");
+    if (d.text && !stale) {
+      lastSpoken = Date.now(); lastKind = event;
       $("coachmsg").textContent = "🤖 Coach: " + d.text;
       if (d.audio) {
         player.src = "data:" + d.audio_format + ";base64," + d.audio;
@@ -130,12 +143,12 @@ async function speak(event, metrics) {
         $("coachmsg").textContent += "  (voice unavailable)";
       }
     }
-  } catch (e) { console.error(e); $("coachmsg").textContent = "Coach error: " + e.message; }
-  busy = false;
+  } catch (e) { console.error(e); DBG.server = "error: " + e.message; $("coachmsg").textContent = "Coach error: " + e.message; }
+  busy = false; dbg();
 }
 
 // ---- workout state (mirrors metrics.py) ----
-const S = {on: false, ex: "", sets: 0, rps: 0, savedSets: 0, finished: false, lastCheck: 0, lastRender: 0};
+const S = {on: false, ex: "", sets: 0, rps: 0, savedSets: 0, finished: false, lastCheck: 0, lastRender: 0, poseOk: false, noPoseSince: 0};
 
 function renderMetrics(m) {
   const box = $("metrics"); box.innerHTML = "";
@@ -154,7 +167,7 @@ function onMetrics(m, ok) {
     S.lastRender = t;
     $("hudRep").textContent = `${cur} / ${S.rps}`;
     $("hudSet").textContent = complete ? "WORKOUT DONE" : `SET ${setsDone + 1} / ${S.sets}`;
-    renderMetrics(m);
+    renderMetrics(m); DBG.ok = ok; dbg();
   }
   if (setsDone > S.savedSets) {            // TODO phase 2: POST to /api/workouts to save in DB
     S.savedSets = setsDone;
@@ -197,18 +210,31 @@ function loop() {
     const r = landmarker.detectForVideo(video, performance.now());
     if (r.landmarks.length) {
       $("nopose").style.display = "none";
+      if (!S.poseOk) {                                   // you just came back into frame
+        S.poseOk = true; S.noPoseSince = 0;
+        if (lastKind === "no_pose_detected") {           // remove the old "step into frame" message and sound
+          player.pause(); playing = false; lastKind = "";
+          $("coachmsg").textContent = "Tracking you again.";
+        }
+      }
       const lm = smooth(r.landmarks[0]);
       draw(lm);
       // Always show the live numbers. If the camera is unsure, dim them and warn, and do not coach on shaky data.
       const ok = bodyVisible(S.ex, lm);
-      const m = DETECTORS[S.ex].process(lm);
+      const m = DETECTORS[S.ex].process(lm, video.videoWidth / video.videoHeight);
       $("status").textContent = statusText(S.ex, m) + (ok ? "" : "  ·  LOW CONFIDENCE, MOVE BACK");
       $("metrics").style.opacity = ok ? 1 : 0.55;
       onMetrics(m, ok);
     } else {
-      prev = null; $("status").textContent = ""; draw(null); $("nopose").style.display = "block";
-      if (!S.finished && Date.now() - S.lastCheck > 5000) { S.lastCheck = Date.now(); speak("no_pose_detected", {
-        issue: "No pose detected. Step into the camera frame and make sure your full body is visible."}); }
+      prev = null; S.poseOk = false; draw(null); $("nopose").style.display = "block";
+      $("status").textContent = ""; $("metrics").style.opacity = 1;
+      if (Date.now() - S.lastRender > 250) { S.lastRender = Date.now(); renderMetrics(null); }   // clear old numbers to "-"
+      if (!S.noPoseSince) S.noPoseSince = Date.now();
+      // Only complain after 3 seconds of really having no pose (not in the first camera frames)
+      if (!S.finished && Date.now() - S.noPoseSince > 3000 && Date.now() - S.lastCheck > 8000) {
+        S.lastCheck = Date.now();
+        speak("no_pose_detected", {issue: "No pose detected. Step into the camera frame and make sure your full body is visible."});
+      }
     }
   }
   requestAnimationFrame(loop);
@@ -237,7 +263,7 @@ $("start").onclick = async () => {
   try { await startCamera(); }
   catch (e) { $("coachmsg").textContent = "Camera error: " + e.message; return; }
   Object.assign(S, {on: true, ex: $("ex").value, sets: +$("sets").value || 1, rps: +$("rps").value || 1,
-                    savedSets: 0, finished: false, lastCheck: 0, lastRender: 0});
+                    savedSets: 0, finished: false, lastCheck: 0, lastRender: 0, poseOk: false, noPoseSince: 0});
   DETECTORS[S.ex].reset(); lastSpoken = 0; prev = null;
   $("setup").hidden = true; $("livebar").hidden = false;     // video jumps to the top
   $("planlabel").textContent = `${S.ex} · ${S.sets} × ${S.rps}`;
