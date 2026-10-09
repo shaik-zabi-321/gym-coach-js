@@ -43,7 +43,7 @@
   .m{background:var(--card);border-left:2px solid var(--accent);padding:6px 10px;min-width:0}
   .m .lbl{display:block;color:var(--dim);font-size:.75rem}
   .m b{display:block;font:500 1rem "JetBrains Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #dbg{font:12px/1.5 "JetBrains Mono",monospace;color:var(--dim);margin-top:6px;word-break:break-word}
+  #debugLine{font:12px/1.5 "JetBrains Mono",monospace;color:var(--dim);margin-top:6px;word-break:break-word}
   #coachmsg{padding:10px 12px;background:#10281c;border-left:3px solid #3ddc84;color:#bff0d3;min-height:2.8em;font-size:.95rem}
 </style>
 </head>
@@ -80,7 +80,7 @@
 
   <div class="chips" id="metrics"></div>
   <div id="coachmsg" aria-live="polite">Pick your plan and press Start.</div>
-  <div id="dbg"></div>
+  <div id="debugLine"></div>
 </main>
 
 <script type="module">
@@ -110,9 +110,9 @@ const player = new Audio();
 player.onended = player.onerror = () => playing = false;
 const SILENT = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 const DBG = {ok: null, sent: 0, server: "-"};
-function dbg() {
+function showDebug() {
   const ago = lastSpoken ? Math.round((Date.now() - lastSpoken) / 1000) + "s ago" : "never";
-  $("dbg").textContent = `camera confidence: ${DBG.ok === false ? "LOW (coach paused)" : "OK"} | checks sent: ${DBG.sent} | server: ${DBG.server} | last cue: ${ago}`;
+  $("debugLine").textContent = `camera confidence: ${DBG.ok === false ? "LOW (coach paused)" : "OK"} | checks sent: ${DBG.sent} | server: ${DBG.server} | last cue: ${ago}`;
 }
 const MAJOR = ["workout_started", "set_completed", "workout_completed"];
 async function speak(event, metrics) {
@@ -144,7 +144,7 @@ async function speak(event, metrics) {
       }
     }
   } catch (e) { console.error(e); DBG.server = "error: " + e.message; $("coachmsg").textContent = "Coach error: " + e.message; }
-  busy = false; dbg();
+  busy = false; showDebug();
 }
 
 // ---- workout state (mirrors metrics.py) ----
@@ -167,7 +167,7 @@ function onMetrics(m, ok) {
     S.lastRender = t;
     $("hudRep").textContent = `${cur} / ${S.rps}`;
     $("hudSet").textContent = complete ? "WORKOUT DONE" : `SET ${setsDone + 1} / ${S.sets}`;
-    renderMetrics(m); DBG.ok = ok; dbg();
+    renderMetrics(m); DBG.ok = ok; showDebug();
   }
   if (setsDone > S.savedSets) {            // TODO phase 2: POST to /api/workouts to save in DB
     S.savedSets = setsDone;
